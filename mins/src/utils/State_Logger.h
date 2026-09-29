@@ -1,35 +1,15 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef MINS_LOGGER_H
 #define MINS_LOGGER_H
 
-#include "boost/filesystem/fstream.hpp"
-#include "boost/filesystem/operations.hpp"
 #include "options/Options.h"
 #include "options/OptionsCamera.h"
 #include "options/OptionsEstimator.h"
@@ -45,6 +25,8 @@
 #include "types/PoseJPL.h"
 #include "update/gps/UpdaterGPS.h"
 #include "utils/colors.h"
+#include "utils/fs_compat.h"
+#include <fstream>
 
 using namespace std;
 using namespace Eigen;
@@ -96,6 +78,9 @@ public:
 
       // gps
       if (op->est->gps->enabled) {
+        filepath_est.insert({"gpsWtoE", path_state + "gps_WtoE_est.txt"});
+        filepath_std.insert({"gpsWtoE", path_state + "gps_WtoE_std.txt"});
+        filepath_gth.insert({"gpsWtoE", path_state + "gps_WtoE_gt.txt"});
         for (int i = 0; i < op->est->gps->max_n; i++) {
           string id = to_string(i);
           if (op->est->gps->do_calib_dt) {
@@ -167,14 +152,14 @@ public:
       for (auto pair : filepath_est) {
         string sensor = pair.first;
         // If the files exist, then delete it
-        boost::filesystem::exists(filepath_est.at(sensor)) && boost::filesystem::remove(filepath_est.at(sensor));
-        boost::filesystem::exists(filepath_std.at(sensor)) && boost::filesystem::remove(filepath_std.at(sensor));
-        boost::filesystem::exists(filepath_gth.at(sensor)) && boost::filesystem::remove(filepath_gth.at(sensor));
+        fs::exists(filepath_est.at(sensor)) && fs::remove(filepath_est.at(sensor));
+        fs::exists(filepath_std.at(sensor)) && fs::remove(filepath_std.at(sensor));
+        fs::exists(filepath_gth.at(sensor)) && fs::remove(filepath_gth.at(sensor));
 
         // Create folder path to this location if not exists
-        boost::filesystem::create_directories(boost::filesystem::path(filepath_est.at(sensor).c_str()).parent_path());
-        boost::filesystem::create_directories(boost::filesystem::path(filepath_std.at(sensor).c_str()).parent_path());
-        boost::filesystem::create_directories(boost::filesystem::path(filepath_gth.at(sensor).c_str()).parent_path());
+        fs::create_directories(fs::path(filepath_est.at(sensor).c_str()).parent_path());
+        fs::create_directories(fs::path(filepath_std.at(sensor).c_str()).parent_path());
+        fs::create_directories(fs::path(filepath_gth.at(sensor).c_str()).parent_path());
 
         // Open the files
         shared_ptr<ofstream> of_est_tmp = make_shared<ofstream>();
@@ -212,8 +197,8 @@ public:
     // trajectory
     if (op->sys->save_trajectory) {
       // Create folder path to this location if not exists
-      boost::filesystem::exists(op->sys->path_trajectory.c_str()) && boost::filesystem::remove(op->sys->path_trajectory.c_str());
-      boost::filesystem::create_directories(boost::filesystem::path(op->sys->path_trajectory.c_str()).parent_path());
+      fs::exists(op->sys->path_trajectory.c_str()) && fs::remove(op->sys->path_trajectory.c_str());
+      fs::create_directories(fs::path(op->sys->path_trajectory.c_str()).parent_path());
       of_traj.open(op->sys->path_trajectory.c_str());
       if (!of_traj.is_open()) {
         PRINT4(RED "Cannot open trajectory recording file: %s\n" RESET, op->sys->path_trajectory.c_str());
@@ -226,8 +211,8 @@ public:
     // Time
     if (op->sys->save_timing) {
       // Create folder path to this location if not exists
-      boost::filesystem::exists(op->sys->path_timing.c_str()) && boost::filesystem::remove(op->sys->path_timing.c_str());
-      boost::filesystem::create_directories(boost::filesystem::path(op->sys->path_timing.c_str()).parent_path());
+      fs::exists(op->sys->path_timing.c_str()) && fs::remove(op->sys->path_timing.c_str());
+      fs::create_directories(fs::path(op->sys->path_timing.c_str()).parent_path());
       of_time.open(op->sys->path_timing.c_str());
       if (!of_time.is_open()) {
         PRINT4(RED "Cannot open timing recording file: %s\n" RESET, op->sys->path_timing.c_str());
@@ -264,6 +249,11 @@ public:
 
     // save gps
     if (op->est->gps->enabled) {
+      // T_WtoE is solved once and then marginalized, so it gets a single row
+      if (!saved_init_WtoE && sys->up_gps->init_WtoE_std.size() > 0) {
+        saved_init_WtoE = true;
+        save_init_WtoE(ss, sys->up_gps, of_est.at("gpsWtoE"), of_std.at("gpsWtoE"), of_gt.at("gpsWtoE"));
+      }
       for (int i = 0; i < op->est->gps->max_n; i++) {
         string sid = "gps" + to_string(i);
         if (op->est->gps->do_calib_dt) {
@@ -353,20 +343,20 @@ public:
       for (auto pair : filepath_est) {
         string sensor = pair.first;
         // If the files exist, then delete it
-        boost::filesystem::exists(filepath_est.at(sensor)) && boost::filesystem::remove(filepath_est.at(sensor));
-        boost::filesystem::exists(filepath_std.at(sensor)) && boost::filesystem::remove(filepath_std.at(sensor));
-        boost::filesystem::exists(filepath_gth.at(sensor)) && boost::filesystem::remove(filepath_gth.at(sensor));
+        fs::exists(filepath_est.at(sensor)) && fs::remove(filepath_est.at(sensor));
+        fs::exists(filepath_std.at(sensor)) && fs::remove(filepath_std.at(sensor));
+        fs::exists(filepath_gth.at(sensor)) && fs::remove(filepath_gth.at(sensor));
       }
     }
 
     // Trajectory
     if (op->sys->save_trajectory && (total_t < 0 || cnt_traj == 0)) {
-      boost::filesystem::exists(op->sys->path_trajectory.c_str()) && boost::filesystem::remove(op->sys->path_trajectory.c_str());
+      fs::exists(op->sys->path_trajectory.c_str()) && fs::remove(op->sys->path_trajectory.c_str());
     }
 
     // Time
     if (op->sys->save_timing && (total_t < 0 || cnt_time == 0 || (cnt_state == 0 && cnt_traj == 0))) {
-      boost::filesystem::exists(op->sys->path_timing.c_str()) && boost::filesystem::remove(op->sys->path_timing.c_str());
+      fs::exists(op->sys->path_timing.c_str()) && fs::remove(op->sys->path_timing.c_str());
     }
   }
 
@@ -406,6 +396,13 @@ private:
     for (int i = 0; i < cov.cols(); i++)
       *of_std << sqrt(cov(i, i)) << " ";
     *of_std << endl;
+  }
+
+  /// Save the one-shot GNSS world-to-ENU initialization (qWtoE, pWinE) and its yaw/position std to file
+  void save_init_WtoE(State_ptr state, shared_ptr<UpdaterGPS> up_gps, shared_ptr<ofstream> of_est, shared_ptr<ofstream> of_std, shared_ptr<ofstream> of_gt) {
+    *of_gt << state->time << " " << op->sim->WtoE_trans.transpose() << endl;
+    *of_est << state->time << " " << up_gps->init_WtoE.transpose() << endl;
+    *of_std << state->time << " " << up_gps->init_WtoE_std.transpose() << endl;
   }
 
   /// Save general vector type state to file. Need to specify the size of the vector.
@@ -467,6 +464,9 @@ private:
 
   /// Saved timing
   double total_t = -1;
+
+  /// whether the one-shot GNSS world-to-ENU initialization has been written
+  bool saved_init_WtoE = false;
 };
 
 } // namespace mins

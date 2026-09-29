@@ -1,28 +1,17 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef MINS_TIMECHECKER_H
 #define MINS_TIMECHECKER_H
 
-#include "boost/date_time/posix_time/posix_time.hpp"
 #include "utils/Print_Logger.h"
+#include <chrono>
 #include <map>
 #include <string>
 #include <vector>
@@ -54,8 +43,8 @@ public:
 
   /// Struct carry time ding dong information
   struct record {
-    boost::posix_time::ptime ding_t;
-    boost::posix_time::ptime dong_t;
+    std::chrono::steady_clock::time_point ding_t;
+    std::chrono::steady_clock::time_point dong_t;
     bool has_prev_ding = false;
     double total_t = 0;
     double max_t = -INFINITY;
@@ -67,7 +56,7 @@ public:
     if (names.find(name) == names.end())
       names.insert({name, record()});
 
-    names.at(name).ding_t = boost::posix_time::microsec_clock::local_time();
+    names.at(name).ding_t = std::chrono::steady_clock::now();
     names.at(name).has_prev_ding = true;
   }
 
@@ -75,7 +64,7 @@ public:
   void ding() {
     // Should have a name
     assert(names.size() == 1);
-    names.begin()->second.ding_t = boost::posix_time::microsec_clock::local_time();
+    names.begin()->second.ding_t = std::chrono::steady_clock::now();
     names.begin()->second.has_prev_ding = true;
   }
 
@@ -85,8 +74,8 @@ public:
       PRINT3("[TimeChecker] Cannot dong because no ding for this name(%s) setup!\n", name.c_str());
       return;
     }
-    names.at(name).dong_t = boost::posix_time::microsec_clock::local_time();
-    double dt = (double)((names.at(name).dong_t - names.at(name).ding_t).total_microseconds() * 1e-6);
+    names.at(name).dong_t = std::chrono::steady_clock::now();
+    double dt = std::chrono::duration<double>(names.at(name).dong_t - names.at(name).ding_t).count();
     names.at(name).total_t += dt;
     if (dt > names.at(name).max_t)
       names.at(name).max_t = dt;
@@ -97,8 +86,8 @@ public:
   void dong() {
     // Should have a name
     assert(names.size() == 1);
-    names.begin()->second.dong_t = boost::posix_time::microsec_clock::local_time();
-    double dt = (double)((names.begin()->second.dong_t - names.begin()->second.ding_t).total_microseconds() * 1e-6);
+    names.begin()->second.dong_t = std::chrono::steady_clock::now();
+    double dt = std::chrono::duration<double>(names.begin()->second.dong_t - names.begin()->second.ding_t).count();
     names.begin()->second.total_t += dt;
     if (dt > names.begin()->second.max_t)
       names.begin()->second.max_t = dt;
@@ -110,22 +99,22 @@ public:
     // if cannot find this name, append to the map
     if (names.find(name) == names.end()) {
       names.insert({name, record()});
-      names.at(name).ding_t = boost::posix_time::microsec_clock::local_time();
+      names.at(name).ding_t = std::chrono::steady_clock::now();
       names.at(name).has_prev_ding = true;
       return;
     }
 
     // Do ding if we dont have prev ding
     if (!names.at(name).has_prev_ding) {
-      names.at(name).ding_t = boost::posix_time::microsec_clock::local_time();
+      names.at(name).ding_t = std::chrono::steady_clock::now();
       names.at(name).has_prev_ding = true;
       return;
     }
 
     // Do dong if we have prev ding
     if (names.at(name).has_prev_ding) {
-      names.at(name).dong_t = boost::posix_time::microsec_clock::local_time();
-      double dt = (double)((names.at(name).dong_t - names.at(name).ding_t).total_microseconds() * 1e-6);
+      names.at(name).dong_t = std::chrono::steady_clock::now();
+      double dt = std::chrono::duration<double>(names.at(name).dong_t - names.at(name).ding_t).count();
       names.at(name).total_t += dt;
       if (dt > names.at(name).max_t)
         names.at(name).max_t = dt;

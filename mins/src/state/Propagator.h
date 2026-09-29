@@ -1,28 +1,10 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef MINS_STATE_PROPAGATOR_H
@@ -68,11 +50,10 @@ public:
    * We use the @ref interpolate_data() function to "cut" the IMU readings at the begining and end of the integration.
    * The timestamps passed should already take into account the timeoffset values.
    *
-   * @param imu_data IMU data we will select measurements from
    * @param time0 Start timestamp
    * @param time1 End timestamp
-   * @param warn If we should warn if we don't have enough IMU to propagate with (e.g. fast get_propagator will get warnings otherwise)
-   * @return Vector of measurements (if we could compute them)
+   * @param data_vec Selected measurements, cut at the two timestamps
+   * @return False if we could not compute them
    */
   bool select_imu_readings(double time0, double time1, vector<ov_core::ImuData> &data_vec);
 
@@ -113,7 +94,6 @@ protected:
    * If you have other state variables besides the IMU that evolve you would add them here.
    * See the @ref error_prop page for details on how this was derived.
    *
-   * @param state Pointer to state
    * @param data_minus IMU readings at beginning of interval
    * @param data_plus IMU readings at end of interval
    * @param F State-transition matrix over the interval
@@ -137,7 +117,7 @@ protected:
    * y_{0+\Delta t} &= y_0 + \left( {{1 \over 6}{k_1} + {1 \over 3}{k_2} + {1 \over 3}{k_3} + {1 \over 6}{k_4}} \right)
    * \f}
    *
-   * @param state Pointer to state
+   * @param imu Pointer to the IMU state we integrate
    * @param dt Time we should integrate over
    * @param w_hat1 Angular velocity with bias removed
    * @param a_hat1 Linear acceleration with bias removed

@@ -1,39 +1,22 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "OptionsCamera.h"
 #include "feat/FeatureInitializerOptions.h"
 #include "utils/Print_Logger.h"
+#include "utils/fs_compat.h"
 #include "utils/opencv_yaml_parse.h"
 
 void mins::OptionsCamera::load(const std::shared_ptr<ov_core::YamlParser> &parser) {
   if (parser != nullptr) {
     std::string f = "config_camera";
-    if (!boost::filesystem::exists(parser->get_config_folder() + f + ".yaml")) {
+    if (!fs::exists(parser->get_config_folder() + f + ".yaml")) {
       enabled = false;
       return;
     }
@@ -181,12 +164,16 @@ void mins::OptionsCamera::load_i(const std::shared_ptr<ov_core::YamlParser> &par
   parser->parse_external(f, "cam" + std::to_string(i), "topic", cam_topic);
   topic.push_back(cam_topic);
 
+  bool cam_compressed;
+  parser->parse_external(f, "cam" + std::to_string(i), "compressed", cam_compressed, false);
+  compressed.insert({i, cam_compressed});
+
   if (use_mask_) {
     std::string mask_path;
     std::string mask_node = "mask" + std::to_string(i);
     parser->parse_external(f, "cam" + std::to_string(i), "mask", mask_path);
     std::string total_mask_path = parser->get_config_folder() + mask_path;
-    if (!boost::filesystem::exists(total_mask_path)) {
+    if (!fs::exists(total_mask_path)) {
       PRINT4(RED "VioManager(): invalid mask path:\n" RESET);
       PRINT4(RED "\t- mask%d - %s\n" RESET, i, total_mask_path.c_str());
       std::exit(EXIT_FAILURE);
@@ -249,5 +236,6 @@ void mins::OptionsCamera::print_i(int i) {
   PRINT1("\t\t\t- [%6.3f, %6.3f, %6.3f, %6.3f]\n", R(2), R(5), R(8), p(2));
   PRINT1("\t\t\t- [ 0.000,  0.000,  0.000,  1.000]\n");
   PRINT1("\t\t- use_mask: %s\n", use_mask.at(i) ? "true" : "false");
+  PRINT1("\t\t- compressed: %s\n", compressed.at(i) ? "true" : "false");
   PRINT1("\t\t- topic: %s\n", topic.at(i).c_str());
 }

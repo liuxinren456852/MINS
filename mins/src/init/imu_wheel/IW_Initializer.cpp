@@ -1,21 +1,10 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "IW_Initializer.h"
@@ -110,16 +99,17 @@ bool IW_Initializer::initialization(Matrix<double, 17, 1> &imustate) {
 bool IW_Initializer::get_IMU_Wheel_data(vector<ImuData> &imu_data, vector<pair<double, VectorXd>> &wheel_data) {
 
   // do not perform initialization if we don't have enough data
-  if (imu_pp->imu_data.size() < 3 || wheel_up->data_stack.size() < 3) {
-    PRINT1(YELLOW "[IW-Init]: Waiting for collecting IMU(%d < 3) and wheel data(%d < 3).\n" RESET, imu_pp->imu_data.size(), wheel_up->data_stack.size());
+  double min_wheel_t, max_wheel_t;
+  if (imu_pp->imu_data.size() < 3 || !wheel_up->measurement_time_span(min_wheel_t, max_wheel_t)) {
+    PRINT1(YELLOW "[IW-Init]: Waiting for collecting IMU(%d < 3) and wheel data(%d < 3).\n" RESET, imu_pp->imu_data.size(), wheel_up->num_measurements());
     return false;
   }
 
   // get the min max times of imu and wheel data
   double min_imu_t = imu_pp->imu_data.at(1).timestamp;
   double max_imu_t = imu_pp->imu_data.at(imu_pp->imu_data.size() - 2).timestamp;
-  double min_wheel_t = wheel_up->data_stack.at(1).time + toff;                               // convert to IMU time
-  double max_wheel_t = wheel_up->data_stack.at(wheel_up->data_stack.size() - 2).time + toff; // convert to IMU time
+  min_wheel_t += toff; // convert to IMU time
+  max_wheel_t += toff; // convert to IMU time
 
   // find common time zone
   double min_t = max(min_imu_t, min_wheel_t);
@@ -147,18 +137,19 @@ bool IW_Initializer::get_IMU_Wheel_data(vector<ImuData> &imu_data, vector<pair<d
   for (auto wheel : wheel_raw_data) {
     // compute the angular velocity at the odometry frame
     Vector3d w_OinO, v_OinO;
-    if (op->wheel_type == "Wheel2DAng" || op->wheel_type == "Wheel3DAng") {
+    switch (ModalityOf(op->wheel_type)) {
+    case WheelModality::Angular:
       w_OinO << 0, 0, (wheel.m2 * rr - wheel.m1 * rl) / base_length;
       v_OinO << (wheel.m2 * rr + wheel.m1 * rl) / 2, 0, 0;
-    } else if (op->wheel_type == "Wheel2DLin" || op->wheel_type == "Wheel3DLin") {
+      break;
+    case WheelModality::Linear:
       w_OinO << 0, 0, (wheel.m2 - wheel.m1) / base_length;
       v_OinO << (wheel.m2 + wheel.m1) / 2, 0, 0;
-    } else if (op->wheel_type == "Wheel2DCen" || op->wheel_type == "Wheel3DCen") {
+      break;
+    case WheelModality::Centered:
       w_OinO << 0, 0, wheel.m1;
       v_OinO << wheel.m2, 0, 0;
-    } else {
-      PRINT4("Wrong wheel type selected!");
-      exit(EXIT_FAILURE);
+      break;
     }
 
     // append the velocities

@@ -1,21 +1,10 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "UpdaterLidar.h"
@@ -24,7 +13,8 @@
 #include "ikd_Tree.h"
 #include "options/OptionsEstimator.h"
 #include "options/OptionsLidar.h"
-#include "pcl/point_cloud.h"
+#include <iostream>
+#include "update/lidar/PointCloud.h"
 #include "state/State.h"
 #include "state/StateHelper.h"
 #include "types/PoseJPL.h"
@@ -47,7 +37,7 @@ UpdaterLidar::UpdaterLidar(shared_ptr<State> state) : state(state) {
   }
 }
 
-void UpdaterLidar::feed_measurement(std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> lidar) {
+void UpdaterLidar::feed_measurement(std::shared_ptr<mins::PointCloud<mins::PointXYZ>> lidar) {
   // Record first ever measurement time to set up reference time (ref. LidarTypes.h)
   FT < 0 ? FT = (double)lidar->header.stamp / 1000 : double();
 
@@ -150,6 +140,14 @@ void UpdaterLidar::propagate_map_frame() {
     if (!ikd_data.at(i)->tree->initialized())
       continue;
 
+    // Drop the map if its anchor already left the clone window (e.g. the wide clone gap right after
+    // init got marginalized before we had enough clones to propagate). The next scan rebuilds it.
+    if (ikd_data.at(i)->time + state->lidar_dt.at(i)->value()(0) < state->oldest_clone_time()) {
+      PRINT3(YELLOW "[LiDAR] Map %d anchor left the clone window. Rebuilding.\n" RESET, i);
+      ikd_data.at(i)->tree->reset();
+      continue;
+    }
+
     // Skip if we do not have enough clones to perform propagation
     if (state->clones.size() < state->op->intr_order + 1)
       continue;
@@ -206,8 +204,10 @@ bool UpdaterLidar::update(std::shared_ptr<LiDARData> lidar, shared_ptr<iKDDATA> 
     if (ikd->time + dt > state->oldest_clone_time()) {
       cout << "ikd->time + dt > state->oldest_clone_time()" << endl;
       return false;
-    } else
-      std::exit(EXIT_FAILURE);
+    }
+    // Anchor left the clone window. propagate_map_frame drops such maps, so this is a backstop.
+    ikd->tree->initialized() ? ikd->tree->reset() : void();
+    return false;
   }
 
   // Add to state map
@@ -283,7 +283,7 @@ bool UpdaterLidar::update(std::shared_ptr<LiDARData> lidar, shared_ptr<iKDDATA> 
         Vector3d pfinM_fej = pLinM_fej + RLtoM_fej * pfinL;
 
         // Get neighbors of this point in the map.
-        POINTCLOUD_XYZI_PTR neighbors_inM(new pcl::PointCloud<pcl::PointXYZI>);
+        POINTCLOUD_XYZI_PTR neighbors_inM(new mins::PointCloud<mins::PointXYZI>);
         if (!LidarHelper::get_neighbors(lidar->pfinM(i), neighbors_inM, ikd->tree, state->op->lidar))
           continue;
 

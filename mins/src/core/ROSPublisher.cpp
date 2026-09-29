@@ -1,31 +1,14 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "ROSPublisher.h"
+#include "update/lidar/PointCloud2Convert.h"
 #include "ROSHelper.h"
 #include "SystemManager.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
@@ -39,7 +22,7 @@
 #include "options/OptionsLidar.h"
 #include "options/OptionsVicon.h"
 #include "options/OptionsWheel.h"
-#include "pcl_conversions/pcl_conversions.h"
+#include "update/lidar/PointCloud.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "state/Propagator.h"
 #include "state/State.h"
@@ -57,7 +40,6 @@
 #include "utils/Print_Logger.h"
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
-#include <pcl/common/transforms.h>
 #include <tf/transform_broadcaster.h>
 
 using namespace std;
@@ -360,7 +342,7 @@ void ROSPublisher::publish_gps(GPSData gps, bool isGeodetic) {
 
   // Convert from a geodetic WGS-84 coordinated to East-North-Up
   if (isGeodetic)
-    gps.meas = MathGPS::GeodeticToEnu(gps.meas, sys->gps_datum);
+    gps.meas = gps_math::GeodeticToEnu(gps.meas, sys->gps_datum);
 
   // Now put the measurement in publisher
   geometry_msgs::PoseStamped poseGPSinENU;
@@ -419,9 +401,9 @@ void ROSPublisher::publish_vicon(ViconData data) {
   seq_vicon[data.id]++;
 }
 
-void ROSPublisher::publish_lidar_cloud(std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> lidar) {
+void ROSPublisher::publish_lidar_cloud(std::shared_ptr<mins::PointCloud<mins::PointXYZ>> lidar) {
   sensor_msgs::PointCloud2 output;
-  pcl::toROSMsg(*lidar, output);
+  mins::toPC2(*lidar, output);
   output.header.frame_id = "lidar" + lidar->header.frame_id;
   output.header.stamp = ros::Time::now();
   pub_lidar_cloud.at(stoi(lidar->header.frame_id)).publish(output);
@@ -465,18 +447,18 @@ void ROSPublisher::publish_lidar_map() {
 
     // Publish pointcloud in the global frame
     // This is slower because it requires pointcloud transform
-    POINTCLOUD_XYZI_PTR map_inL(new pcl::PointCloud<pcl::PointXYZI>);
+    POINTCLOUD_XYZI_PTR map_inL(new mins::PointCloud<mins::PointXYZI>);
     ikd->tree->flatten(ikd->tree->Root_Node, map_inL->points, NOT_RECORD);
     pair<Matrix3d, Vector3d> pose_LinG = sys->up_ldr->get_pose_LinG(ikd->id, ikd->time);
     Matrix4d tr = Matrix4d::Identity();
     tr.block(0, 0, 3, 3) = pose_LinG.first.transpose();
     tr.block(0, 3, 3, 1) = pose_LinG.second;
-    POINTCLOUD_XYZI_PTR map_inG(new pcl::PointCloud<pcl::PointXYZI>);
+    POINTCLOUD_XYZI_PTR map_inG(new mins::PointCloud<mins::PointXYZI>);
     map_inL->height = map_inL->points.size();
     map_inL->width = 1;
-    pcl::transformPointCloud(*map_inL, *map_inG, tr);
+    mins::transformPointCloud(*map_inL, *map_inG, tr);
     sensor_msgs::PointCloud2 map_pointcloud;
-    pcl::toROSMsg(*map_inG, map_pointcloud);
+    mins::toPC2(*map_inG, map_pointcloud);
     map_pointcloud.header.frame_id = "global";
     map_pointcloud.header.stamp = ros::Time::now();
     pub_lidar_map.at(ikd->id).publish(map_pointcloud);

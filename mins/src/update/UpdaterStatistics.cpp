@@ -1,21 +1,10 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "UpdaterStatistics.h"
@@ -23,14 +12,13 @@
 #include "state/StateHelper.h"
 #include "utils/Jabdongsani.h"
 #include "utils/Print_Logger.h"
-#include <boost/math/distributions/chi_squared.hpp>
+#include "utils/chi_square.h"
 
-using namespace boost::math;
 using namespace mins;
 
 UpdaterStatistics::UpdaterStatistics(double chi2_mult, string type, int id) : type(type), id(id), chi2_mult(chi2_mult) {
   for (int i = 1; i < max_chi_size; i++)
-    chi_squared_table[i] = quantile(chi_squared(i), 0.95);
+    chi_squared_table[i] = chi_square_quantile(0.95, i);
   chi_stat = make_shared<STAT>();
   res_stat = make_shared<STAT>();
   std_stat = make_shared<STAT>();
@@ -111,8 +99,7 @@ bool UpdaterStatistics::get_chi2(double &chi, double &thr, const MatrixXd &P, co
   if (res.rows() < max_chi_size) {
     thr = chi2_mult * chi_squared_table[res.rows()];
   } else {
-    chi_squared chi_squared_dist(res.rows());
-    thr = chi2_mult * quantile(chi_squared_dist, 0.95);
+    thr = chi2_mult * chi_square_quantile(0.95, res.rows());
   }
   if (isnan(chi)) {
     string sensor = type + (id < 0 ? "" : to_string(id));

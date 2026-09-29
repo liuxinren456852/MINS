@@ -1,28 +1,10 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef MINS_CONSTBSPLINESE3_H
@@ -194,9 +176,9 @@ protected:
    * @param timestamp Desired timestamp we want to get two bounding poses of
    * @param poses Map of poses and timestamps
    * @param t0 Timestamp of the first pose
-   * @param pose0 SE(3) pose of the first pose
+   * @param pos0 Position of the first pose
    * @param t1 Timestamp of the second pose
-   * @param pose1 SE(3) pose of the second pose
+   * @param pos1 Position of the second pose
    * @return False if we are unable to find bounding poses
    */
 
@@ -206,18 +188,17 @@ protected:
    * @brief Will find two older poses and two newer poses for the current timestamp
    *
    * @param timestamp Desired timestamp we want to get four bounding poses of
-   * @param poses Map of poses and timestamps
+   * @param positions Map of control positions and timestamps
    * @param t0 Timestamp of the first pose
-   * @param pose0 SE(3) pose of the first pose
+   * @param pos0 Position of the first pose
    * @param t1 Timestamp of the second pose
-   * @param pose1 SE(3) pose of the second pose
+   * @param pos1 Position of the second pose
    * @param t2 Timestamp of the third pose
-   * @param pose2 SE(3) pose of the third pose
+   * @param pos2 Position of the third pose
    * @param t3 Timestamp of the fourth pose
-   * @param pose3 SE(3) pose of the fourth pose
+   * @param pos3 Position of the fourth pose
    * @return False if we are unable to find bounding poses
    */
-  typedef Vector3d V3;
   bool find_bounding_control_positions(const double timestamp, const AlignedEigenVec3d &positions, double &t0, Vector3d &pos0, double &t1, Vector3d &pos1, double &t2,
                                        Vector3d &pos2, double &t3, Vector3d &pos3);
 

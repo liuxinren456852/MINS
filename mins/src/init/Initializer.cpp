@@ -1,28 +1,10 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "Initializer.h"
@@ -48,6 +30,7 @@
 #include "update/gps/UpdaterGPS.h"
 #include "update/lidar/LidarHelper.h"
 #include "update/lidar/LidarTypes.h"
+#include "update/lidar/PointCloud.h"
 #include "update/lidar/UpdaterLidar.h"
 #include "update/lidar/ikd_Tree.h"
 #include "update/wheel/UpdaterWheel.h"
@@ -55,9 +38,6 @@
 #include "utils/Print_Logger.h"
 #include "utils/TimeChecker.h"
 #include "utils/dataset_reader.h"
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-
 using namespace std;
 using namespace Eigen;
 using namespace mins;
@@ -180,12 +160,8 @@ void Initializer::delete_old_measurements() {
 
     // wheel
     if (state->op->wheel->enabled) {
-      int del_whl = 0;
-      for (auto data = up_whl->data_stack.begin(); !up_whl->data_stack.empty() && (*data).time < old_time;) {
-        del_whl++;
-        data = up_whl->data_stack.erase(data);
-      }
-      del_whl > 0 ? PRINT1(YELLOW "[INIT]: Delete Wheel stack. Del: %d, Remain: %d\n" RESET, del_whl, up_whl->data_stack.size()) : void();
+      int del_whl = up_whl->cleanup_measurements(old_time);
+      del_whl > 0 ? PRINT1(YELLOW "[INIT]: Delete Wheel stack. Del: %d, Remain: %d\n" RESET, del_whl, up_whl->num_measurements()) : void();
     }
 
     // lidar
@@ -321,7 +297,7 @@ void Initializer::init_lidar_sim() {
     }
 
     // Get the lidar point cloud
-    std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> lidar(new pcl::PointCloud<pcl::PointXYZ>);
+    std::shared_ptr<mins::PointCloud<mins::PointXYZ>> lidar(new mins::PointCloud<mins::PointXYZ>);
     bool success = sim->get_lidar_pointcloud(lidar, sim->timestamp - op->dt.at(i), i, op);
     assert(success);
 

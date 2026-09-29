@@ -1,31 +1,21 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "OptionsWheel.h"
 #include "utils/Print_Logger.h"
+#include "utils/fs_compat.h"
 #include "utils/opencv_yaml_parse.h"
 
 void mins::OptionsWheel::load(const std::shared_ptr<ov_core::YamlParser> &parser) {
   if (parser != nullptr) {
     std::string f = "config_wheel";
-    if (!boost::filesystem::exists(parser->get_config_folder() + f + ".yaml")) {
+    if (!fs::exists(parser->get_config_folder() + f + ".yaml")) {
       enabled = false;
       return;
     }
@@ -80,15 +70,16 @@ void mins::OptionsWheel::load(const std::shared_ptr<ov_core::YamlParser> &parser
     intr << I[0], I[1], I[2];
     intrinsics = intr;
 
-    parser->parse_external(f, "wheel", "type", type);
-    if (type != "Wheel2DAng" && type != "Wheel2DLin" && type != "Wheel2DCen" && type != "Wheel3DAng" && type != "Wheel3DLin" && type != "Wheel3DCen") {
-      PRINT4(RED "%s is not a supported type of wheel.\n" RESET, type.c_str());
+    std::string type_name;
+    parser->parse_external(f, "wheel", "type", type_name);
+    if (!ParseWheelType(type_name, type)) {
+      PRINT4(RED "%s is not a supported type of wheel.\n" RESET, type_name.c_str());
       PRINT4(RED "Available: Wheel2DAng, Wheel2DLin, Wheel2DCen, Wheel3DAng, Wheel3DLin, Wheel3DCen\n" RESET);
       exit(EXIT_FAILURE);
     }
 
     // should disable intrinsic calibration if not using angular velocity of wheel
-    if (type != "Wheel2DAng" && type != "Wheel3DAng") {
+    if (ModalityOf(type) != WheelModality::Angular) {
       do_calib_int = false;
     }
   }
@@ -111,7 +102,7 @@ void mins::OptionsWheel::print() {
   PRINT1("\t- init_cov_in_b: %.6f\n", init_cov_in_b);
   PRINT1("\t- init_cov_in_r: %.6f\n", init_cov_in_r);
   PRINT1("\t- init_cov_in_r: %.6f\n", init_cov_in_r);
-  PRINT1("\t- WheelType: %s\n", type.c_str());
+  PRINT1("\t- WheelType: %s\n", ToString(type));
   PRINT1("\t- timeoffset: %6.3f\n", dt);
   PRINT1("\t- T_imu_wheel:\n");
   Eigen::Matrix3d R = ov_core::quat_2_Rot(extrinsics.head(4)).transpose();

@@ -1,28 +1,10 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "SystemManager.h"
@@ -51,13 +33,22 @@
 #include "update/wheel/WheelTypes.h"
 #include "utils/Jabdongsani.h"
 #include "utils/TimeChecker.h"
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-
+#include "update/lidar/PointCloud.h"
 using namespace std;
 using namespace mins;
 
-SystemManager::SystemManager(shared_ptr<OptionsEstimator> op, shared_ptr<Simulator> sim) {
+SystemManager::SystemManager(shared_ptr<OptionsEstimator> op, shared_ptr<Simulator> sim): op(op), sim(sim) {
+  init();
+}
+
+void SystemManager::init() {
+  // Eigen reads the cpu cache sizes at runtime and picks its matrix-product blocking from them, so the same binary
+  // sums a product in a different order on a different machine and the estimate moves by an ulp. Pin the blocking
+  // when a run has to be comparable across machines, which is what the KAIST CI needs.
+  if (getenv("MINS_EIGEN_CACHE") != nullptr) {
+    Eigen::setCpuCacheSizes(32 * 1024, 512 * 1024, 32 * 1024 * 1024);
+  }
+
   // Create "THE MOST IMPORTANT" state
   state = std::make_shared<State>(op, sim);
   tc_sensors = std::make_shared<TimeChecker>();
@@ -174,7 +165,8 @@ void SystemManager::feed_measurement_wheel(const WheelData &wheel) {
   state->initialized ? tc_sensors->dong("WHL") : void();
 }
 
-void SystemManager::feed_measurement_lidar(std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> lidar) {
+
+void SystemManager::feed_measurement_lidar(std::shared_ptr<mins::PointCloud<mins::PointXYZ>> lidar) {
   if (!state->op->lidar->enabled)
     return;
   state->initialized ? tc_sensors->ding("LDR") : void();
@@ -199,7 +191,7 @@ void SystemManager::feed_measurement_gps(GPSData gps, bool isGeodetic) {
   }
 
   // Convert from a geodetic WGS-84 coordinated to East-North-Up
-  gps.meas = isGeodetic ? MathGPS::GeodeticToEnu(gps.meas, gps_datum) : gps.meas;
+  gps.meas = isGeodetic ? gps_math::GeodeticToEnu(gps.meas, gps_datum) : gps.meas;
 
   // Add keyframe if not initialized.
   !up_gps->initialized ? up_gps->add_keyframes(gps) : void();
@@ -481,8 +473,12 @@ void SystemManager::print_status() {
 
   // Wheel
   auto w_op = state->op->wheel;
-  if (w_op->enabled && up_whl->t_hist.size() > 2)
-    PRINT2(" WHL %.1f", (up_whl->t_hist.size() - 1) / (up_whl->t_hist.back() - up_whl->t_hist.front()));
+  if (w_op->enabled)
+  {
+
+    if (up_whl->t_hist.size() > 2)
+      PRINT2(" WHL %.1f", (up_whl->t_hist.size() - 1) / (up_whl->t_hist.back() - up_whl->t_hist.front()));
+  }
 
   PRINT2("\n");
 

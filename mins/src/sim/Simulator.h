@@ -1,35 +1,16 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef MINS_SIMULATOR_H
 #define MINS_SIMULATOR_H
 
 #include <Eigen/Eigen>
-#include <boost/shared_ptr.hpp>
 #include <memory>
 #include <random>
 #include <unordered_map>
@@ -39,10 +20,7 @@ namespace ov_core {
 struct ImuData;
 }
 
-namespace pcl {
-class PointXYZ;
-template <class pointT> class PointCloud;
-} // namespace pcl
+#include "update/lidar/PointCloud.h"
 
 using namespace Eigen;
 namespace mins {
@@ -71,7 +49,7 @@ class Simulator {
 public:
   /**
    * @brief Default constructor, will load all configuration variables
-   * @param params_ VioManager parameters. Should have already been loaded from cmd.
+   * @param op Estimator options. Should have already been loaded from cmd.
    */
   Simulator(std::shared_ptr<Options> op);
 
@@ -123,14 +101,18 @@ public:
    * @param lidar mins::LidarData
    * @return True if we have a measurement
    */
-  bool get_next_lidar(std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> lidar);
+  bool get_next_lidar(std::shared_ptr<mins::PointCloud<mins::PointXYZ>> lidar);
 
   /// boolean for transforming groundtruth after GPS initialization
   bool trans_gt_to_ENU = false;
 
+  /// Returns RMSE and NEES of IMU pose (ori rmse, pos rmse, ori nees, pos nees)
+  Vector4d imu_rmse_nees(double time, Matrix<double, 7, 1> imu, Matrix<double, 6, 6> cov);
+
 protected:
   friend class Initializer;
   friend class SimVisualizer;
+  friend class Sim2Visualizer;
   friend class State_Logger;
 
   /// Get LiDAR plane info
@@ -141,9 +123,6 @@ protected:
 
   /// Returns the true 3d map of camera features
   std::unordered_map<size_t, Vector3d> get_cam_map();
-
-  /// Returns RMSE and NEES of IMU pose (ori rmse, pos rmse, ori nees, pos nees)
-  Vector4d imu_rmse_nees(double time, Matrix<double, 7, 1> imu, Matrix<double, 6, 6> cov);
 
   /// a wrapper function of spline that returns IMU pose & velocities & accelerations
   bool get_imu_acceleration(double timestamp, Matrix3d &R_GtoI, Vector3d &p_IinG, Vector3d &w_IinI, Vector3d &v_IinG, Vector3d &alpha_IinI, Vector3d &a_IinG);
@@ -164,8 +143,6 @@ protected:
 
   /**
    * @brief Will get a set of perturbed parameters
-   * @param gen_state Random number gen to use
-   * @param op_ Parameters we will perturb
    */
   void perturb_calibration();
 
@@ -174,7 +151,6 @@ protected:
    * @param R_GtoI Orientation of the IMU pose
    * @param p_IinG Position of the IMU pose
    * @param camid Camera id of the camera sensor we want to project into
-   * @param feats Our set of 3d features
    * @return True distorted raw image measurements and their ids for the specified camera
    */
   std::vector<std::pair<size_t, VectorXf>> project_pointcloud(const Matrix3d &R_GtoI, const Vector3d &p_IinG, int camid);
@@ -186,7 +162,7 @@ protected:
   bool load_plane_data(std::string path_planes);
 
   /// Generate LiDAR pointcloud
-  bool get_lidar_pointcloud(std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> lidar, double time, int id, std::shared_ptr<OptionsLidar> lidar_op);
+  bool get_lidar_pointcloud(std::shared_ptr<mins::PointCloud<mins::PointXYZ>> lidar, double time, int id, std::shared_ptr<OptionsLidar> lidar_op);
 
   /**
    * @brief Will generate points in the fov of the specified camera

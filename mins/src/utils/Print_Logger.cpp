@@ -1,32 +1,14 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "Print_Logger.h"
-#include <boost/filesystem.hpp>
+#include "utils/fs_compat.h"
 #include <cstdarg>
 #include <cstring>
 #include <iostream>
@@ -42,16 +24,16 @@ void Print_Logger::open_file(const std::string &path, bool remove_exist) {
   std::string output_path;
   for (int i = 0; i < 10000; i++) {
     output_path = path + "/mins_log" + std::to_string(i) + ".txt";
-    if (boost::filesystem::exists(output_path)) {
+    if (fs::exists(output_path)) {
       if (remove_exist) {
-        boost::filesystem::remove(output_path);
+        fs::remove(output_path);
         break;
       }
       continue;
     } else
       break;
   }
-  boost::filesystem::create_directories(boost::filesystem::path(output_path.c_str()).parent_path());
+  fs::create_directories(fs::path(output_path.c_str()).parent_path());
   pFile = fopen(output_path.c_str(), "w");
 }
 

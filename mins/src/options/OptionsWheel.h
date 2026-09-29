@@ -1,26 +1,16 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef MINS_OPTIONSWHEEL_H
 #define MINS_OPTIONSWHEEL_H
 
+#include "update/wheel/WheelTypes.h"
 #include <Eigen/Eigen>
 #include <memory>
 #include <vector>
@@ -47,8 +37,8 @@ struct OptionsWheel {
 
   vector<string> sub_topics = {"front_left_wheel_joint", "front_right_wheel_joint", "rear_left_wheel_joint", "rear_right_wheel_joint"};
 
-  /// Type of the wheel
-  string type;
+  /// Measurement model of the wheel, resolved from the config yaml name
+  WheelType type = WheelType::Wheel2DAng;
 
   /// Noise settings for the measurements (angular/linear velocities & planar motion constraint)
   double noise_w = 0.005;
@@ -69,10 +59,10 @@ struct OptionsWheel {
   double chi2_mult = 1;
 
   /// wheel extrinsics (q_ItoW, p_IinW). Default value identity
-  Eigen::VectorXd extrinsics;
+  Eigen::VectorXd extrinsics = (Eigen::Matrix<double, 7, 1>() << 0, 0, 0, 1, 0, 0, 0).finished();
 
-  /// wheel intrinsics (r_l, r_r, b)
-  Eigen::Vector3d intrinsics;
+  /// wheel intrinsics (r_l, r_r, b). Default value 1m wheels on a 2m baseline
+  Eigen::Vector3d intrinsics = Eigen::Vector3d(1, 1, 2);
 
   /// Bool to determine whether or not to calibrate timeoffset
   bool do_calib_dt = true;

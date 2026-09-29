@@ -1,33 +1,16 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef MINS_CORE_PRINT_H
 #define MINS_CORE_PRINT_H
 
+#include <cstdint>
 #include <string>
 
 namespace mins {
@@ -95,10 +78,10 @@ private:
  * The different Types of print levels
  */
 // Get the file name directly https://stackoverflow.com/questions/8487986/file-macro-shows-full-path
-#define PRINT0(x...) mins::Print_Logger::debugPrint(0, __FILE__, TOSTRING(__LINE__), x)
-#define PRINT1(x...) mins::Print_Logger::debugPrint(1, __FILE__, TOSTRING(__LINE__), x)
-#define PRINT2(x...) mins::Print_Logger::debugPrint(2, __FILE__, TOSTRING(__LINE__), x)
-#define PRINT3(x...) mins::Print_Logger::debugPrint(3, __FILE__, TOSTRING(__LINE__), x)
-#define PRINT4(x...) mins::Print_Logger::debugPrint(4, __FILE__, TOSTRING(__LINE__), x)
+#define PRINT0(...) mins::Print_Logger::debugPrint(0, __FILE__, TOSTRING(__LINE__), __VA_ARGS__)
+#define PRINT1(...) mins::Print_Logger::debugPrint(1, __FILE__, TOSTRING(__LINE__), __VA_ARGS__)
+#define PRINT2(...) mins::Print_Logger::debugPrint(2, __FILE__, TOSTRING(__LINE__), __VA_ARGS__)
+#define PRINT3(...) mins::Print_Logger::debugPrint(3, __FILE__, TOSTRING(__LINE__), __VA_ARGS__)
+#define PRINT4(...) mins::Print_Logger::debugPrint(4, __FILE__, TOSTRING(__LINE__), __VA_ARGS__)
 #define PRINTLINE printf("%s:%d\n", strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__, __LINE__);
 #endif /* mins_PRINT_H */

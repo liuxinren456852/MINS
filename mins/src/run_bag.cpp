@@ -1,28 +1,10 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "core/ROSHelper.h"
@@ -48,8 +30,7 @@
 #include "utils/opencv_yaml_parse.h"
 #include <geometry_msgs/PoseStamped.h>
 #include <memory>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
+#include "update/lidar/PointCloud.h"
 #include <ros/ros.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -169,7 +150,7 @@ int main(int argc, char **argv) {
     if (op->est->lidar->enabled) {
       for (int lidar_id = 0; lidar_id < op->est->lidar->max_n; lidar_id++) {
         if (msgs.at(i).getTopic() == op->est->lidar->topic.at(lidar_id)) {
-          std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> data = ROSHelper::rosPC2pclPC(msgs.at(i).instantiate<sensor_msgs::PointCloud2>(), lidar_id);
+          std::shared_ptr<mins::PointCloud<mins::PointXYZ>> data = ROSHelper::rosPC2pclPC(msgs.at(i).instantiate<sensor_msgs::PointCloud2>(), lidar_id);
           PRINT1("[BAG] LDR measurement: %.3f|%d|%d\n", (double)data->header.stamp / 1000, lidar_id, data->points.size());
           sys->feed_measurement_lidar(data);
           pub->publish_lidar_cloud(data);

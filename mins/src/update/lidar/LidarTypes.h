@@ -1,41 +1,26 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef MINS_LIDARTYPES_H
 #define MINS_LIDARTYPES_H
 
 #include <Eigen/Eigen>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 using namespace Eigen;
-namespace pcl {
-class PointXYZ;
-class PointXYZI;
-template <class pointT> class PointCloud;
-} // namespace pcl
-typedef std::shared_ptr<pcl::PointCloud<pcl::PointXYZI>> POINTCLOUD_XYZI_PTR;
+#include "update/lidar/PointCloud.h"
+typedef std::shared_ptr<mins::PointCloud<mins::PointXYZI>> POINTCLOUD_XYZI_PTR;
 template <class pointT> class KD_TREE;
 
 namespace mins {
 struct LiDARData {
-  LiDARData(double time, double ref_time, int id, std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> pointcloud, double max_range, double min_range);
+  LiDARData(double time, double ref_time, int id, std::shared_ptr<mins::PointCloud<mins::PointXYZ>> pointcloud, double max_range, double min_range);
 
   LiDARData();
 
@@ -71,7 +56,7 @@ struct LiDARData {
 struct iKDDATA {
   iKDDATA(int id);
   // ikd tree
-  std::shared_ptr<KD_TREE<pcl::PointXYZI>> tree;
+  std::shared_ptr<KD_TREE<mins::PointXYZI>> tree;
   // time this tree (map) is anchored at
   double time;
   // ID of corresponding LiDAR

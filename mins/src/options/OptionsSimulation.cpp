@@ -1,42 +1,25 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This code is implemented based on:
- * OpenVINS: An Open Platform for Visual-Inertial Research
- * Copyright (C) 2018-2023 Patrick Geneva
- * Copyright (C) 2018-2023 Guoquan Huang
- * Copyright (C) 2018-2023 OpenVINS Contributors
- * Copyright (C) 2018-2019 Kevin Eckenhoff
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "OptionsSimulation.h"
 #include "OptionsEstimator.h"
+#include "utils/PackagePath.h"
 #include "utils/Print_Logger.h"
+#include "utils/fs_compat.h"
 #include "utils/opencv_yaml_parse.h"
-#include <ros/package.h>
 
 mins::OptionsSimulation::OptionsSimulation() { est_true = std::make_shared<OptionsEstimator>(); }
 
 void mins::OptionsSimulation::load_print(const std::shared_ptr<ov_core::YamlParser> &parser) {
   if (parser != nullptr) {
     std::string f = "config_simulation";
-    if (!boost::filesystem::exists(parser->get_config_folder() + f + ".yaml")) {
+    if (!fs::exists(parser->get_config_folder() + f + ".yaml")) {
       return;
     }
     parser->parse_external(f, "sim", "seed", seed);
@@ -61,8 +44,9 @@ void mins::OptionsSimulation::load_print(const std::shared_ptr<ov_core::YamlPars
     WtoE_trans.block(0, 0, 4, 1) = ov_core::rot_2_quat(T.block(0, 0, 3, 3));
     WtoE_trans.block(4, 0, 3, 1) = T.block(0, 3, 3, 1);
     // Replace MINS_DATA_DIR if we have it
-    BSpline_path.substr(0, 13) == "MINS_DATA_DIR" ? BSpline_path.replace(0, 13, ros::package::getPath("mins_data")) : std::string();
-    planes_path.substr(0, 13) == "MINS_DATA_DIR" ? planes_path.replace(0, 13, ros::package::getPath("mins_data")) : std::string();
+    auto dir = mins::get_package_path("mins_data");
+    BSpline_path.substr(0, 13) == "MINS_DATA_DIR" ? BSpline_path.replace(0, 13, dir) : std::string();
+    planes_path.substr(0, 13) == "MINS_DATA_DIR" ? planes_path.replace(0, 13, dir) : std::string();
 
     // Load Ground truth estimator parameters
     est_true->load(parser);

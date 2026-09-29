@@ -1,21 +1,10 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "UpdaterGPS.h"
@@ -239,6 +228,10 @@ bool UpdaterGPS::try_initialization() {
       ++i;
   }
 
+  // Keep the one-shot solution and its uncertainty for the logger, since the transform is marginalized below
+  init_WtoE = state->trans_WtoE->value();
+  init_WtoE_std = StateHelper::get_marginal_covariance(state, {state->trans_WtoE}).diagonal().cwiseSqrt();
+
   auto q = state->trans_WtoE->quat();
   auto p = state->trans_WtoE->pos();
   PRINT2(CYAN "[GPS]: ENUtoWorld transform initialized: " RESET);
@@ -277,7 +270,7 @@ bool UpdaterGPS::get_initial_guess(vector<GPSData> data_init, Matrix3d &RWtoE, V
     vec_pGPSinE.emplace_back(data_init.at(i).meas);
   }
 
-  // Directly compute the 4 dof solution from Chao's polynomial method with ransac
+  // Solve for the 4 dof transform between the world and ENU frames
   if (!state->op->gps->init_closed_form) {
     // Build up our J matrix with the left and right quaterions
     Matrix4d J = Matrix4d::Zero();
@@ -286,7 +279,7 @@ bool UpdaterGPS::get_initial_guess(vector<GPSData> data_init, Matrix3d &RWtoE, V
       Matrix<double, 4, 1> v_iq = Matrix<double, 4, 1>::Zero();
       u_iq.block(0, 0, 3, 1) = vec_pGPSinE[f] - pGPSinE_mean;
       v_iq.block(0, 0, 3, 1) = vec_pGPSinW[f] - pGPSinW_mean;
-      J += MathGPS::Left_q(u_iq).transpose() * MathGPS::Right_q(v_iq);
+      J += gps_math::Left_q(u_iq).transpose() * gps_math::Right_q(v_iq);
     }
     // Solve for the best fit solution
     EigenSolver<MatrixXd> es(J);
@@ -309,7 +302,7 @@ bool UpdaterGPS::get_initial_guess(vector<GPSData> data_init, Matrix3d &RWtoE, V
 
   } else {
     // Directly compute the 4 dof solution from Chao's polynomial method with ransac
-    if (!MathGPS::Ransac_4Dof(vec_pGPSinE, vec_pGPSinW, RWtoE, pWinE, 1, 100 * data_init.at(0).noise(0))) {
+    if (!gps_math::Ransac_4Dof(vec_pGPSinE, vec_pGPSinW, RWtoE, pWinE, 1, 100 * data_init.at(0).noise(0))) {
       PRINT2(REDPURPLE "[GPS]: Fail to find good solution for 4DOF initialization\n" RESET);
       return false;
     }
@@ -422,6 +415,7 @@ void UpdaterGPS::construct_init_linsys(vector<GPSData> data_init, Matrix3d RWtoE
 
     //=========================================================================
     // Noise Covariance with inflation x10
+    // TODO: the x10 is unexplained and makes the init covariance ~10x too wide; use the real noise, but prove no KAIST eval regression first
     //=========================================================================
     for (int j = 0; j < 3; j++)
       Rinv(3 * i + j, 3 * i + j) = 1.0 / pow(noise(j) * 10, 2);
@@ -487,7 +481,7 @@ void UpdaterGPS::transform_state_to_ENU() {
     H.block(clone.second->id(), state->trans_WtoE->id(), 3, 1) = -(RWtoCl * RWtoE.transpose()).block(0, 2, 3, 1);
     H.block(clone.second->id() + 3, state->trans_WtoE->id(), 3, 1) = skew_x(RWtoE * pClinW).block(0, 2, 3, 1);
     H.block(clone.second->id() + 3, state->trans_WtoE->id() + 1, 3, 3).setIdentity();
-    H.block(clone.second->id() + 3, 3, 3, 3) = RWtoE;
+    H.block(clone.second->id() + 3, clone.second->id() + 3, 3, 3) = RWtoE;
   }
 
   // New Covariance

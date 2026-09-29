@@ -1,31 +1,21 @@
 /*
  * MINS: Efficient and Robust Multisensor-aided Inertial Navigation System
- * Copyright (C) 2023 Woosik Lee
- * Copyright (C) 2023 Guoquan Huang
- * Copyright (C) 2023 MINS Contributors
+ * Copyright (C) 2019-2026 Woosik Lee
+ * Copyright (C) 2019-2026 Guoquan Huang
+ * Copyright (C) 2019-2026 MINS Contributors
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "OptionsLidar.h"
 #include "utils/Print_Logger.h"
+#include "utils/fs_compat.h"
 #include "utils/opencv_yaml_parse.h"
 
 void mins::OptionsLidar::load(const std::shared_ptr<ov_core::YamlParser> &parser) {
   if (parser != nullptr) {
     std::string f = "config_lidar";
-    if (!boost::filesystem::exists(parser->get_config_folder() + f + ".yaml")) {
+    if (!fs::exists(parser->get_config_folder() + f + ".yaml")) {
       enabled = false;
       return;
     }
@@ -49,6 +39,7 @@ void mins::OptionsLidar::load(const std::shared_ptr<ov_core::YamlParser> &parser
     parser->parse_external(f, "lidar", "map_ngbr_max_d", map_ngbr_max_d);
     parser->parse_external(f, "lidar", "map_downsample_size", map_downsample_size);
     parser->parse_external(f, "lidar", "map_do_downsample", map_do_downsample);
+    parser->parse_external(f, "lidar", "map_thread_rebuild_num", map_thread_rebuild_num, false);
     parser->parse_external(f, "lidar", "map_decay_time", map_decay_time);
     parser->parse_external(f, "lidar", "map_decay_dist", map_decay_dist);
     parser->parse_external(f, "lidar", "map_use_icp", map_use_icp);
